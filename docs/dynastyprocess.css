@@ -88,6 +88,6 @@ h1,h2,h3,h4,h5,h6,.d-title,.distill-site-header {
   align-self: flex-start !important;
 }
 
-#sfb_main_sim {
+#sfb_main_sim,#sfb_satellite_sim {
   font-size: 12px;
 }

@@ -1,20 +1,20 @@
 name: "."
 title: "SFB11 Projections | DynastyProcess.com"
 description: |
-  DynastyProcess.com Projections of Scott Fish Bowl 11 Main and Satellite Contests as created by ffsimulator
+  DynastyProcess.com Projections of Scott Fish Bowl 11 Main and Satellite Contests as created by ffsimulator R pkg
 output_dir: "docs"
 theme: dynastyprocess.css
 navbar:
   right:
     - text: "Main"
-      href: index.html
+      href: "#main-contest"
     - text: "Satellite"
-      href: satellite.html
+      href: "#satellite-contest"
     - text: "|"
     - text: "ffsimulator"
       href: "https://ffsimulator.ffverse.com"
-    - text: "ffverse"
-      href: "https://ffverse.com"
-    - text: "DynastyProcess.com"
+    - text: "DynastyProcess"
       href: "https://dynastyprocess.com"
+    - text: "@_TanHo"
+      href: "https://twitter.com/_TanHo"
 output: distill::distill_article

@@ -1,8 +1,11 @@
 ---
-title: "SFB Main Contest Projections"
+title: "SFB Projections"
 description: |
-  This site hosts projections for the SFB11 tournament, created by the ffsimulator R package.
-site: distill::distill_website
+  This site hosts projections for the [Scott Fish Bowl 11](https://scottfishbowl.com), as created by the [ffsimulator](https://ffsimulator.ffverse.com) R package.
+  
+  Projections last updated on 2021-09-05.
+site: 
+  distill::distill_website
 ---
 
 ```{r setup, include=FALSE}
@@ -62,17 +65,22 @@ simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.p
     "Seasons",
     `Division Name`
   )
-
 ```
 
-```{r layout = "l-body-outset"}
+## Main Contest
 
+```{r layout = "l-body-outset"}
 crosstalk_simulation <- SharedData$new(simulation)
+
+bscols(
+  widths = c(4,4),
+  filter_select("main_franchise_name", "Franchise Name", crosstalk_simulation, ~`Franchise Name`),
+  filter_select("main_division", "Division Select", crosstalk_simulation, ~`Division Name`)
+)
 
 crosstalk_simulation %>% 
   reactable(
     elementId = "sfb_main_sim",
-    searchable = TRUE,
     striped = TRUE,
     highlight = TRUE,
     resizable = TRUE,
@@ -109,3 +117,107 @@ crosstalk_simulation %>%
 
 ```
 
+## Satellite Contest
+
+```{r layout = "l-body-outset"}
+
+satellite_rosters <- arrow::read_parquet("data/satellite_2021-09-05/rosters.parquet")
+
+satellite_franchises <- satellite_rosters %>% 
+  select(
+    franchise_id,
+    franchise_name,
+    league_id,
+    division_id,
+    division_name
+  ) %>% 
+  distinct()
+
+satellite <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_adp.parquet") %>% 
+  left_join(
+    x = satellite_franchises,
+    y = .,
+    by = c("league_id","franchise_id","franchise_name")
+  ) %>% 
+  select(
+    -franchise_id,
+    -division_id
+  ) %>% 
+  janitor::clean_names("title") %>% 
+  rename(
+    "H2H Wins" = "H2h Wins",
+    "H2H Win %" = "H2h Winpct",
+    "AllPlay Wins" = "Allplay Wins",
+    "AllPlay Win %" = "Allplay Winpct",
+    "Points For" = "Points for",
+    "League ID" = "League Id"
+  ) %>% 
+  mutate(
+    `Franchise Name` = dp_clean_html(`Franchise Name`) %>% str_squish(),
+    `Rank` = rank(-`Points For`,ties.method = "random")
+  ) %>% 
+  arrange(Rank) %>% 
+  select(
+    `Franchise Name`,
+    `Rank`,
+    "Points For",
+    "H2H Win %",
+    "AllPlay Win %",
+    "H2H Wins",
+    "AllPlay Wins",
+    "Points Against",
+    "Potential Points",
+    "Seasons",
+    `League ID`,
+    `Division Name`
+  )
+
+crosstalk_satellite <- SharedData$new(satellite)
+
+bscols(
+  widths = c(4,4,4),
+  filter_select("main_franchise_name", "Franchise Name", crosstalk_satellite, ~`Franchise Name`),
+  filter_select("satellite_leagueid","League ID", crosstalk_satellite, ~`League ID`),
+  filter_select("satellite_division", "Division Select", crosstalk_satellite, ~`Division Name`)
+)
+
+crosstalk_satellite %>% 
+  reactable(
+    elementId = "sfb_satellite_sim",
+    striped = TRUE,
+    highlight = TRUE,
+    resizable = TRUE,
+    compact = FALSE,
+    width = 'auto',
+    columns = list(
+      `Franchise Name` = colDef(minWidth = 150,sticky = "left"),
+      `Division Name` = colDef(minWidth = 75),
+      `Rank` = colDef(minWidth = 75),
+      `H2H Wins` = colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `H2H Win %`= colDef(minWidth = 75,
+                          format = colFormat(percent = TRUE)),
+      `AllPlay Wins` = colDef(minWidth = 75,
+                              format = colFormat(digits = 1)),
+      `AllPlay Win %`= colDef(minWidth = 75,
+                          format = colFormat(percent = TRUE)),
+      `Points For`= colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `Points Against`= colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `Potential Points`= colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `Seasons` = colDef(minWidth = 75,
+                          format = colFormat(digits = 0)),
+      `League ID` = colDef(minWidth = 75,
+                          format = colFormat(digits = 0))
+    ),
+    fullWidth = TRUE,
+    defaultSortOrder = "asc",
+    defaultSorted = c("Rank"),
+    defaultPageSize = 25,
+    pageSizeOptions = c(25,50,100,500),
+    showPageSizeOptions = TRUE
+  )
+
+```
