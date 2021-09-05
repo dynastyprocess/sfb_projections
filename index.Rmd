@@ -40,7 +40,7 @@ simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.p
   mutate(
     franchise_name = dp_clean_html(franchise_name) %>% str_squish(),
     franchise_url = glue::glue("https://www03.myfantasyleague.com/2021/options?L={league_id}&F={franchise_id}&O=07"),
-    franchise_name = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
+    franchise_label = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
     rank = rank(-points_for, ties.method = "random")
   ) %>% 
   select(
@@ -58,6 +58,7 @@ simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.p
   arrange(Rank) %>% 
   select(
     `Franchise Name`,
+    `Franchise Label`,
     `Rank`,
     "Points For",
     "H2H Win %",
@@ -91,7 +92,8 @@ crosstalk_simulation %>%
     compact = FALSE,
     width = 'auto',
     columns = list(
-      `Franchise Name` = colDef(minWidth = 150,sticky = "left", html = TRUE),
+      `Franchise Name` = colDef(show = FALSE),
+      `Franchise Label` = colDef(minWidth = 150,sticky = "left", html = TRUE, name = "Franchise Name"),
       `Division Name` = colDef(minWidth = 100),
       `Rank` = colDef(minWidth = 75),
       `H2H Wins` = colDef(minWidth = 75,
@@ -146,7 +148,7 @@ satellite <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_a
     mutate(
     franchise_name = dp_clean_html(franchise_name) %>% str_squish(),
     franchise_url = glue::glue("https://www03.myfantasyleague.com/2021/options?L={league_id}&F={franchise_id}&O=07"),
-    franchise_name = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
+    franchise_label = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
     rank = rank(-points_for, ties.method = "random")
   ) %>% 
   select(
@@ -166,6 +168,7 @@ satellite <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_a
   arrange(Rank) %>% 
   select(
     `Franchise Name`,
+    `Franchise Label`,
     `Rank`,
     "Points For",
     "H2H Win %",
@@ -197,7 +200,8 @@ crosstalk_satellite %>%
     compact = FALSE,
     width = 'auto',
     columns = list(
-      `Franchise Name` = colDef(minWidth = 150,html = TRUE,sticky = "left"),
+      `Franchise Name` = colDef(show = FALSE),
+      `Franchise Label` = colDef(minWidth = 150,sticky = "left", html = TRUE, name = "Franchise Name"),
       `Division Name` = colDef(minWidth = 75),
       `Rank` = colDef(minWidth = 75),
       `H2H Wins` = colDef(minWidth = 75,
