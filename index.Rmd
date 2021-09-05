@@ -17,6 +17,7 @@ library(crosstalk)
 library(janitor)
 library(tidyverse)
 library(ffscrapr)
+library(htmltools)
 
 rosters <- arrow::read_parquet("data/main_2021-09-05/rosters.parquet")
 
@@ -36,8 +37,15 @@ simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.p
     y = .,
     by = c("league_id","franchise_id","franchise_name")
   ) %>% 
+  mutate(
+    franchise_name = dp_clean_html(franchise_name) %>% str_squish(),
+    franchise_url = glue::glue("https://www03.myfantasyleague.com/2021/options?L={league_id}&F={franchise_id}&O=07"),
+    franchise_name = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
+    rank = rank(-points_for, ties.method = "random")
+  ) %>% 
   select(
-    -contains("id")
+    -contains("id"),
+    -franchise_url
   ) %>% 
   janitor::clean_names("title") %>% 
   rename(
@@ -46,10 +54,6 @@ simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.p
     "AllPlay Wins" = "Allplay Wins",
     "AllPlay Win %" = "Allplay Winpct",
     "Points For" = "Points for"
-  ) %>% 
-  mutate(
-    `Franchise Name` = dp_clean_html(`Franchise Name`) %>% str_squish(),
-    `Rank` = rank(-`Points For`,ties.method = "random")
   ) %>% 
   arrange(Rank) %>% 
   select(
@@ -87,7 +91,7 @@ crosstalk_simulation %>%
     compact = FALSE,
     width = 'auto',
     columns = list(
-      `Franchise Name` = colDef(minWidth = 150,sticky = "left"),
+      `Franchise Name` = colDef(minWidth = 150,sticky = "left", html = TRUE),
       `Division Name` = colDef(minWidth = 100),
       `Rank` = colDef(minWidth = 75),
       `H2H Wins` = colDef(minWidth = 75,
@@ -139,9 +143,16 @@ satellite <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_a
     y = .,
     by = c("league_id","franchise_id","franchise_name")
   ) %>% 
+    mutate(
+    franchise_name = dp_clean_html(franchise_name) %>% str_squish(),
+    franchise_url = glue::glue("https://www03.myfantasyleague.com/2021/options?L={league_id}&F={franchise_id}&O=07"),
+    franchise_name = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
+    rank = rank(-points_for, ties.method = "random")
+  ) %>% 
   select(
     -franchise_id,
-    -division_id
+    -division_id,
+    -franchise_url
   ) %>% 
   janitor::clean_names("title") %>% 
   rename(
@@ -151,10 +162,6 @@ satellite <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_a
     "AllPlay Win %" = "Allplay Winpct",
     "Points For" = "Points for",
     "League ID" = "League Id"
-  ) %>% 
-  mutate(
-    `Franchise Name` = dp_clean_html(`Franchise Name`) %>% str_squish(),
-    `Rank` = rank(-`Points For`,ties.method = "random")
   ) %>% 
   arrange(Rank) %>% 
   select(
@@ -190,7 +197,7 @@ crosstalk_satellite %>%
     compact = FALSE,
     width = 'auto',
     columns = list(
-      `Franchise Name` = colDef(minWidth = 150,sticky = "left"),
+      `Franchise Name` = colDef(minWidth = 150,html = TRUE,sticky = "left"),
       `Division Name` = colDef(minWidth = 75),
       `Rank` = colDef(minWidth = 75),
       `H2H Wins` = colDef(minWidth = 75,
