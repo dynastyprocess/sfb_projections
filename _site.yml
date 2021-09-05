@@ -2,7 +2,7 @@ name: "."
 title: "SFB11 Projections | DynastyProcess.com"
 description: |
   DynastyProcess.com Projections of Scott Fish Bowl 11 Main and Satellite Contests as created by ffsimulator
-output_dir: "_site"
+output_dir: "docs"
 theme: dynastyprocess.css
 navbar:
   right:
