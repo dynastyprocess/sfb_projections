@@ -1,0 +1,20 @@
+name: "."
+title: "SFB11 Projections | DynastyProcess.com"
+description: |
+  DynastyProcess.com Projections of Scott Fish Bowl 11 Main and Satellite Contests as created by ffsimulator
+output_dir: "_site"
+theme: dynastyprocess.css
+navbar:
+  right:
+    - text: "Main"
+      href: index.html
+    - text: "Satellite"
+      href: satellite.html
+    - text: "|"
+    - text: "ffsimulator"
+      href: "https://ffsimulator.ffverse.com"
+    - text: "ffverse"
+      href: "https://ffverse.com"
+    - text: "DynastyProcess.com"
+      href: "https://dynastyprocess.com"
+output: distill::distill_article

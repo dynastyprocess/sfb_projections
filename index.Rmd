@@ -1,0 +1,111 @@
+---
+title: "SFB Main Contest Projections"
+description: |
+  This site hosts projections for the SFB11 tournament, created by the ffsimulator R package.
+site: distill::distill_website
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(arrow)
+library(reactable)
+library(crosstalk)
+library(janitor)
+library(tidyverse)
+library(ffscrapr)
+
+rosters <- arrow::read_parquet("data/main_2021-09-05/rosters.parquet")
+
+franchises <- rosters %>% 
+  select(
+    franchise_id,
+    franchise_name,
+    league_id,
+    division_id,
+    division_name
+  ) %>% 
+  distinct()
+
+simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.parquet") %>% 
+  left_join(
+    x = franchises,
+    y = .,
+    by = c("league_id","franchise_id","franchise_name")
+  ) %>% 
+  select(
+    -contains("id")
+  ) %>% 
+  janitor::clean_names("title") %>% 
+  rename(
+    "H2H Wins" = "H2h Wins",
+    "H2H Win %" = "H2h Winpct",
+    "AllPlay Wins" = "Allplay Wins",
+    "AllPlay Win %" = "Allplay Winpct",
+    "Points For" = "Points for"
+  ) %>% 
+  mutate(
+    `Franchise Name` = dp_clean_html(`Franchise Name`) %>% str_squish(),
+    `Rank` = rank(-`Points For`,ties.method = "random")
+  ) %>% 
+  arrange(Rank) %>% 
+  select(
+    `Franchise Name`,
+    `Rank`,
+    "Points For",
+    "H2H Win %",
+    "AllPlay Win %",
+    "H2H Wins",
+    "AllPlay Wins",
+    "Points Against",
+    "Potential Points",
+    "Seasons",
+    `Division Name`
+  )
+
+```
+
+```{r layout = "l-body-outset"}
+
+crosstalk_simulation <- SharedData$new(simulation)
+
+crosstalk_simulation %>% 
+  reactable(
+    elementId = "sfb_main_sim",
+    searchable = TRUE,
+    striped = TRUE,
+    highlight = TRUE,
+    resizable = TRUE,
+    compact = FALSE,
+    width = 'auto',
+    columns = list(
+      `Franchise Name` = colDef(minWidth = 150,sticky = "left"),
+      `Division Name` = colDef(minWidth = 100),
+      `Rank` = colDef(minWidth = 75),
+      `H2H Wins` = colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `H2H Win %`= colDef(minWidth = 75,
+                          format = colFormat(percent = TRUE)),
+      `AllPlay Wins` = colDef(minWidth = 75,
+                              format = colFormat(digits = 1)),
+      `AllPlay Win %`= colDef(minWidth = 75,
+                          format = colFormat(percent = TRUE)),
+      `Points For`= colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `Points Against`= colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `Potential Points`= colDef(minWidth = 75,
+                          format = colFormat(digits = 1)),
+      `Seasons` = colDef(minWidth = 75,
+                          format = colFormat(digits = 0))
+    ),
+    fullWidth = TRUE,
+    defaultSortOrder = "asc",
+    defaultSorted = c("Rank"),
+    defaultPageSize = 25,
+    pageSizeOptions = c(25,50,100,500),
+    showPageSizeOptions = TRUE
+  )
+
+```
+
