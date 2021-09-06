@@ -18,10 +18,14 @@ library(janitor)
 library(tidyverse)
 library(ffscrapr)
 library(htmltools)
+```
 
-rosters <- arrow::read_parquet("data/main_2021-09-05/rosters.parquet")
+## Main Contest
 
-franchises <- rosters %>% 
+```{r layout = "l-body-outset"}
+main_rosters <- arrow::read_parquet("data/main_2021-09-05/rosters.parquet")
+
+main_franchises <- main_rosters %>% 
   select(
     franchise_id,
     franchise_name,
@@ -31,9 +35,27 @@ franchises <- rosters %>%
   ) %>% 
   distinct()
 
-simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.parquet") %>% 
+main_percentiles <- arrow::read_parquet("data/main_2021-09-05/summary_season_adp.parquet") %>% 
+  group_by(season) %>% 
+  mutate(rank = rank(-points_for)) %>% 
+  group_by(league_id, franchise_id) %>% 
+  summarise(
+    percentiles = c(0.05,0.25,0.5,0.75,0.95),
+    points = quantile(points_for,percentiles) %>% round(),
+    rank = quantile(rank,1-percentiles) %>% round() %>% scales::ordinal(big.mark = ""),
+    percentiles = scales::ordinal(percentiles * 100),
+    outcome = glue::glue("{rank} ({points})"),
+  ) %>% 
+  ungroup() %>% 
+  select(-points,-rank) %>% 
+  pivot_wider(
+    names_from = "percentiles",
+    values_from = "outcome"
+  )
+
+main_simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.parquet") %>% 
   left_join(
-    x = franchises,
+    x = main_franchises,
     y = .,
     by = c("league_id","franchise_id","franchise_name")
   ) %>% 
@@ -44,46 +66,45 @@ simulation <- arrow::read_parquet("data/main_2021-09-05/summary_simulation_adp.p
     rank = rank(-points_for, ties.method = "random")
   ) %>% 
   select(
-    -contains("id"),
-    -franchise_url
+    league_id,
+    franchise_id, 
+    franchise_name,
+    franchise_label,
+    division_name,
+    rank,
+    points_for,
+    h2h_winpct,
+    allplay_winpct
   ) %>% 
-  janitor::clean_names("title") %>% 
-  rename(
-    "H2H Wins" = "H2h Wins",
-    "H2H Win %" = "H2h Winpct",
-    "AllPlay Wins" = "Allplay Wins",
-    "AllPlay Win %" = "Allplay Winpct",
-    "Points For" = "Points for"
+  left_join(
+    main_percentiles,
+    by = c("league_id","franchise_id")
   ) %>% 
-  arrange(Rank) %>% 
   select(
-    `Franchise Name`,
-    `Franchise Label`,
-    `Rank`,
-    "Points For",
-    "H2H Win %",
-    "AllPlay Win %",
-    "H2H Wins",
-    "AllPlay Wins",
-    "Points Against",
-    "Potential Points",
-    "Seasons",
-    `Division Name`
-  )
-```
+    "Franchise Name" = "franchise_name",
+    "Franchise Label" = "franchise_label",
+    "Rank" = "rank",
+    "Points For" = "points_for",
+    "H2H Win %" = "h2h_winpct",
+    "AllPlay Win %" = "allplay_winpct",
+    "5th",
+    "25th",
+    "50th",
+    "75th",
+    "95th",
+    "Division Name" = "division_name"
+  ) %>% 
+  arrange(Rank)
 
-## Main Contest
-
-```{r layout = "l-body-outset"}
-crosstalk_simulation <- SharedData$new(simulation)
+crosstalk_main <- SharedData$new(main_simulation)
 
 bscols(
   widths = c(4,4),
-  filter_select("main_franchise_name", "Franchise Name", crosstalk_simulation, ~`Franchise Name`),
-  filter_select("main_division", "Division Select", crosstalk_simulation, ~`Division Name`)
+  filter_select("main_franchise_name", "Franchise Name", crosstalk_main, ~`Franchise Name`),
+  filter_select("main_division", "Division Select", crosstalk_main, ~`Division Name`)
 )
 
-crosstalk_simulation %>% 
+crosstalk_main %>% 
   reactable(
     elementId = "sfb_main_sim",
     striped = TRUE,
@@ -91,28 +112,30 @@ crosstalk_simulation %>%
     resizable = TRUE,
     compact = FALSE,
     width = 'auto',
+    columnGroups =  list(
+      colGroup(name = "Percentile Outcomes - Rank (Points)",
+               columns = c("5th", "25th","50th","75th","95th")),
+      colGroup(
+        name = "Overall",
+        headerStyle = list(borderRight = "1px solid #eee"),
+        columns = c("Rank", "Points For","H2H Win %", "AllPlay Win %"))
+    ),
     columns = list(
       `Franchise Name` = colDef(show = FALSE),
       `Franchise Label` = colDef(minWidth = 150,sticky = "left", html = TRUE, name = "Franchise Name"),
       `Division Name` = colDef(minWidth = 100),
-      `Rank` = colDef(minWidth = 75),
-      `H2H Wins` = colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
+      `Rank` = colDef(minWidth = 75,
+                      style = list(borderLeft = "1px solid #eee")
+                      ),
       `H2H Win %`= colDef(minWidth = 75,
                           format = colFormat(percent = TRUE)),
-      `AllPlay Wins` = colDef(minWidth = 75,
-                              format = colFormat(digits = 1)),
       `AllPlay Win %`= colDef(minWidth = 75,
-                          format = colFormat(percent = TRUE)),
+                          format = colFormat(percent = TRUE),
+                      style = list(borderRight = "1px solid #eee"),
+                      headerStyle = list(borderRight = "1px solid #eee")),
       `Points For`= colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `Points Against`= colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `Potential Points`= colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `Seasons` = colDef(minWidth = 75,
-                          format = colFormat(digits = 0))
-    ),
+                          format = colFormat(digits = 1))
+      ),
     fullWidth = TRUE,
     defaultSortOrder = "asc",
     defaultSorted = c("Rank"),
@@ -126,7 +149,6 @@ crosstalk_simulation %>%
 ## Satellite Contest
 
 ```{r layout = "l-body-outset"}
-
 satellite_rosters <- arrow::read_parquet("data/satellite_2021-09-05/rosters.parquet")
 
 satellite_franchises <- satellite_rosters %>% 
@@ -139,54 +161,71 @@ satellite_franchises <- satellite_rosters %>%
   ) %>% 
   distinct()
 
-satellite <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_adp.parquet") %>% 
+satellite_percentiles <- arrow::read_parquet("data/satellite_2021-09-05/summary_season_adp.parquet") %>% 
+  group_by(season) %>% 
+  mutate(rank = rank(-points_for)) %>% 
+  group_by(league_id, franchise_id) %>% 
+  summarise(
+    percentiles = c(0.05,0.25,0.5,0.75,0.95),
+    points = quantile(points_for,percentiles) %>% round(),
+    rank = quantile(rank,1-percentiles) %>% round() %>% scales::ordinal(big.mark = ""),
+    percentiles = scales::ordinal(percentiles * 100),
+    outcome = glue::glue("{rank} ({points})"),
+  ) %>% 
+  ungroup() %>% 
+  select(-points,-rank) %>% 
+  pivot_wider(
+    names_from = "percentiles",
+    values_from = "outcome"
+  )
+
+satellite_simulation <- arrow::read_parquet("data/satellite_2021-09-05/summary_simulation_adp.parquet") %>% 
   left_join(
     x = satellite_franchises,
     y = .,
     by = c("league_id","franchise_id","franchise_name")
   ) %>% 
-    mutate(
+  mutate(
     franchise_name = dp_clean_html(franchise_name) %>% str_squish(),
     franchise_url = glue::glue("https://www03.myfantasyleague.com/2021/options?L={league_id}&F={franchise_id}&O=07"),
     franchise_label = map2_chr(franchise_name,franchise_url,~as.character(htmltools::tags$a(.x,href = .y))),
     rank = rank(-points_for, ties.method = "random")
   ) %>% 
   select(
-    -franchise_id,
-    -division_id,
-    -franchise_url
+    league_id,
+    franchise_id, 
+    franchise_name,
+    franchise_label,
+    division_name,
+    rank,
+    points_for,
+    h2h_winpct,
+    allplay_winpct
   ) %>% 
-  janitor::clean_names("title") %>% 
-  rename(
-    "H2H Wins" = "H2h Wins",
-    "H2H Win %" = "H2h Winpct",
-    "AllPlay Wins" = "Allplay Wins",
-    "AllPlay Win %" = "Allplay Winpct",
-    "Points For" = "Points for",
-    "League ID" = "League Id"
+  left_join(
+    satellite_percentiles,
+    by = c("league_id","franchise_id")
   ) %>% 
-  arrange(Rank) %>% 
   select(
-    `Franchise Name`,
-    `Franchise Label`,
-    `Rank`,
-    "Points For",
-    "H2H Win %",
-    "AllPlay Win %",
-    "H2H Wins",
-    "AllPlay Wins",
-    "Points Against",
-    "Potential Points",
-    "Seasons",
-    `League ID`,
-    `Division Name`
-  )
+    "Franchise Name" = "franchise_name",
+    "Franchise Label" = "franchise_label",
+    "Rank" = "rank",
+    "Points For" = "points_for",
+    "5th",
+    "25th",
+    "50th",
+    "75th",
+    "95th",
+    "League ID" = "league_id",
+    "Division Name" = "division_name"
+  ) %>% 
+  arrange(Rank)
 
-crosstalk_satellite <- SharedData$new(satellite)
+crosstalk_satellite <- SharedData$new(satellite_simulation)
 
 bscols(
   widths = c(4,4,4),
-  filter_select("main_franchise_name", "Franchise Name", crosstalk_satellite, ~`Franchise Name`),
+  filter_select("satellite_franchise_name", "Franchise Name", crosstalk_satellite, ~`Franchise Name`),
   filter_select("satellite_leagueid","League ID", crosstalk_satellite, ~`League ID`),
   filter_select("satellite_division", "Division Select", crosstalk_satellite, ~`Division Name`)
 )
@@ -199,29 +238,24 @@ crosstalk_satellite %>%
     resizable = TRUE,
     compact = FALSE,
     width = 'auto',
+    columnGroups =  list(
+      colGroup(name = "Percentile Outcomes - Rank (Points)",
+               columns = c("5th", "25th","50th","75th","95th")
+               ),
+      colGroup(
+        name = "Overall",
+        headerStyle = list(borderRight = "1px solid #eee"),
+        columns = c("Rank", "Points For"))
+    ),
     columns = list(
       `Franchise Name` = colDef(show = FALSE),
       `Franchise Label` = colDef(minWidth = 150,sticky = "left", html = TRUE, name = "Franchise Name"),
-      `Division Name` = colDef(minWidth = 75),
-      `Rank` = colDef(minWidth = 75),
-      `H2H Wins` = colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `H2H Win %`= colDef(minWidth = 75,
-                          format = colFormat(percent = TRUE)),
-      `AllPlay Wins` = colDef(minWidth = 75,
-                              format = colFormat(digits = 1)),
-      `AllPlay Win %`= colDef(minWidth = 75,
-                          format = colFormat(percent = TRUE)),
+      `Division Name` = colDef(minWidth = 100),
+      `Rank` = colDef(minWidth = 75, style = list(borderLeft = "1px solid #eee")),
       `Points For`= colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `Points Against`= colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `Potential Points`= colDef(minWidth = 75,
-                          format = colFormat(digits = 1)),
-      `Seasons` = colDef(minWidth = 75,
-                          format = colFormat(digits = 0)),
-      `League ID` = colDef(minWidth = 75,
-                          format = colFormat(digits = 0))
+                           format = colFormat(digits = 1),
+                           style = list(borderRight = "1px solid #eee"),
+                           headerStyle = list(borderRight = "1px solid #eee"))
     ),
     fullWidth = TRUE,
     defaultSortOrder = "asc",
@@ -230,5 +264,6 @@ crosstalk_satellite %>%
     pageSizeOptions = c(25,50,100,500),
     showPageSizeOptions = TRUE
   )
+
 
 ```
