@@ -44,7 +44,7 @@ main_percentiles <- arrow::read_parquet("data/main_2021-09-05/summary_season_adp
     points = quantile(points_for,percentiles) %>% round(),
     rank = quantile(rank,1-percentiles) %>% round() %>% scales::ordinal(big.mark = ""),
     percentiles = scales::ordinal(percentiles * 100),
-    outcome = glue::glue("{rank} ({points})"),
+    outcome = glue::glue("{points} ({rank})"),
   ) %>% 
   ungroup() %>% 
   select(-points,-rank) %>% 
@@ -113,7 +113,7 @@ crosstalk_main %>%
     compact = FALSE,
     width = 'auto',
     columnGroups =  list(
-      colGroup(name = "Percentile Outcomes - Rank (Points)",
+      colGroup(name = "Percentile Outcomes - Points (Rank)",
                columns = c("5th", "25th","50th","75th","95th")),
       colGroup(
         name = "Overall",
@@ -170,7 +170,7 @@ satellite_percentiles <- arrow::read_parquet("data/satellite_2021-09-05/summary_
     points = quantile(points_for,percentiles) %>% round(),
     rank = quantile(rank,1-percentiles) %>% round() %>% scales::ordinal(big.mark = ""),
     percentiles = scales::ordinal(percentiles * 100),
-    outcome = glue::glue("{rank} ({points})"),
+    outcome = glue::glue("{points} ({rank})"),
   ) %>% 
   ungroup() %>% 
   select(-points,-rank) %>% 
@@ -239,7 +239,7 @@ crosstalk_satellite %>%
     compact = FALSE,
     width = 'auto',
     columnGroups =  list(
-      colGroup(name = "Percentile Outcomes - Rank (Points)",
+      colGroup(name = "Percentile Outcomes - Points (Rank)",
                columns = c("5th", "25th","50th","75th","95th")
                ),
       colGroup(
